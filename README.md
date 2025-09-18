@@ -22,14 +22,14 @@ We plan to develop the game as mainly a single or two-player game locally. While
 ## 🤖 AI Design
 The enemies will aggro on the player immediately after spawning/entering the arena. The enemies will have some basic attack patterns that are telegraphed and predictable with slight variations depending on the player’s position (ranged attack if they are far, sweep attack if they are too close). But sometimes they will throw in special attacks based on a controlled randomizer which the players will have to react to. The harder bosses will have phases as well that will trigger upon failure to stop the boss’ mechanics, such as powering up, which will enhance their current move-sets/attacks. 
 
-Example enemy FSM
-Idle
-Move towards player
-Make a sweep attack
-Charge for throwing ranged projectile
-Summon destroyable totems
-If totem not destroyed in time - add damage multiplier and heal hp
-If totem is destroyed - increase damage taken multiplier and remain idle for certain time
+Example enemy FSM<br>
+Idle<br>
+Move towards player<br>
+Make a sweep attack<br>
+Charge for throwing ranged projectile<br>
+Summon destroyable totems<br>
+If totem not destroyed in time - add damage multiplier and heal hp<br>
+If totem is destroyed - increase damage taken multiplier and remain idle for certain time<br>
 
 ## 🎬 Scripted Events
 The first boss will spawn immediately after a short cinematic/dialog scene. On some boss phases, it will feature timed conditions (such as hitting them down to HP threshold, avoiding boss attacks, hitting levers to deactivate the boss gimmicks, etc.), where the player is penalized if they are unable to fulfill the condition until the timer hits 0. The sub-sequent bosses will spawn after the previous boss dies.
