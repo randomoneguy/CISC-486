@@ -38,18 +38,6 @@ Esc pause
 ## 📂 Project Setup
 Assets such as character models, particles and effects will mostly be made in blender, and 3DS max will be used for modelling animation. Some other minor assets may be pulled from the unity asset store, such as music and sound effects, which will be license free or commission based depending on the need. 
 
-## Timeline
-W4 - Basic box arena environment and project set up with basic assets.
-W5 - Start creating the first boss and the first player Reimu. (Movements and animations, collision scripts)
-W6 - Player attack and combos, boss attacks and patterns.
-W7 - Player health bar and taking damage scripts/interactions. Boss health bar and taking damage scripts.
-W8 - Test interactions and finalize gameplay.
-W9 - Start creating second playable character, Marisa and second enemy AI, implemented based on current player and enemy.
-W10 - Create different attack types and patterns for player 2 and boss.
-W11 - Game playable with 2 players on same device and control.
-W12 - Implement LAN co-op.
-W13 - Finalize game.
-
 ## Group Information
 Members:
 Aniss Hamouda - 20348807
