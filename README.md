@@ -3,6 +3,25 @@ Arena Boss Rush TouHou inspired
 
 # 🎮 Title: Touhou Souls
 
+
+# UPDATE - Current FSM for enemy Robot NPC
+
+<img width="640" height="480" alt="Blank diagram" src="https://github.com/user-attachments/assets/24bd80b3-20c4-4bac-8f64-507cb2885b5c" />
+
+Idle - Enemy AI stand still, idle animation playing<br>
+Walk - Enemy AI slowly approaches player, walking animation playing<br>
+Charge - Enemy AI sprints towards player, running animation playing<br>
+Kick - Enenmy AI performs a kick attack, kicking animation playing<br>
+<br>
+The enemy starts from Walk state as they spawn and chase the player.<br>
+From Walk they can transition to Charge - when they're in charge range of the player and Charge is not on cooldown (currentTime - lastChargeTime > chargeCoolDown)<br>
+From Walk they will transition to Idle - when they are currently in stopping distance to player (1.5f radius)<br>
+From Idle they can transition to Kick attack - when they're still in melee range (1.75f) of player and Kick is not on cooldown<br>
+From Idle they can also transition to Walk - once player walks out of the stopping distance range<br>
+From Kick they will always transition back to Idle after animation finish playing and in Idle state it will decide to transition other states when applicable<br>
+From Charge they can transition to Kick immediate without Idle if they charged within the attack range. <br>
+From Charge they can transition to Walk if duration of Charge runs out before reaching the player (ie player dashes away) <br>
+
 ## 📌 Overview
 Touhou Souls is designed as a 3D arena boss rush game. The player(s), originally from the Touhou universe, namely Reimu and/or Marisa, will be transported to an arena in another world. In the arena, they will have to survive and win against numerous boss encounters to beat the game.
 
