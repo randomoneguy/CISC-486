@@ -28,14 +28,14 @@ public class IdleState : EnemyState
         
         // transitions from idle
         // If player moves too far away, start walking
-        if (distanceToPlayer > enemyAI.stoppingDistance + 1f)
+        if (distanceToPlayer > enemyAI.getStoppingDistance() + 1f)
         {
             stateMachine.ChangeState(stateMachine.walkState);
             return;
         }
         
         // If player is in melee range, attack directly (regardless of charge cooldown)
-        if (distanceToPlayer <= enemyAI.meleeRange && enemyAI.CanMeleeAttack())
+        if (distanceToPlayer <= enemyAI.getMeleeRange() && enemyAI.CanMeleeAttack())
         {
             stateMachine.ChangeState(stateMachine.meleeAttackState);
             return;
@@ -43,17 +43,7 @@ public class IdleState : EnemyState
 
         
         // Face the player while idle
-        Vector3 direction = (enemyAI.player.position - stateMachine.transform.position).normalized;
-        direction.y = 0;
-        if (direction != Vector3.zero)
-        {
-            Quaternion targetRotation = Quaternion.LookRotation(direction);
-            stateMachine.transform.rotation = Quaternion.Slerp(
-                stateMachine.transform.rotation, 
-                targetRotation, 
-                enemyAI.rotationSpeed * Time.deltaTime
-            );
-        }
+        enemyAI.FacePlayer();
     }
     
     public override void Exit()
@@ -79,7 +69,7 @@ public class WalkState : EnemyState
         float distanceToPlayer = Vector3.Distance(stateMachine.transform.position, enemyAI.player.position);
         
         // Check if we should transition to charge state (only if cooldown is ready)
-        if (distanceToPlayer <= enemyAI.chargeRange && enemyAI.CanCharge())
+        if (distanceToPlayer <= enemyAI.getChargeRange() && enemyAI.CanCharge())
         {
             stateMachine.ChangeState(stateMachine.chargeState);
             return;
@@ -87,7 +77,7 @@ public class WalkState : EnemyState
 
         
         // If we're close enough, go to idle, small offset to avoid being stuck just before stopping distance and can't transition
-        if (distanceToPlayer <= enemyAI.stoppingDistance + 0.15f)
+        if (distanceToPlayer <= enemyAI.getStoppingDistance() + 0.15f)
         {
             stateMachine.ChangeState(stateMachine.idleState);
             return;
@@ -95,25 +85,11 @@ public class WalkState : EnemyState
         
         // Move towards player but maintain a comfortable distance
         Vector3 directionToPlayer = (enemyAI.player.position - stateMachine.transform.position).normalized;
-        Vector3 targetPosition = enemyAI.player.position - (directionToPlayer * enemyAI.stoppingDistance);
+        Vector3 targetPosition = enemyAI.player.position - (directionToPlayer * enemyAI.getStoppingDistance());
         agent.SetDestination(targetPosition);
         
         // Smooth rotation during movement
-        if (agent.velocity.magnitude > 0.1f)
-        {
-            Vector3 moveDirection = agent.velocity.normalized;
-            moveDirection.y = 0; // Keep rotation on horizontal plane
-            
-            if (moveDirection != Vector3.zero)
-            {
-                Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
-                stateMachine.transform.rotation = Quaternion.Slerp(
-                    stateMachine.transform.rotation, 
-                    targetRotation, 
-                    enemyAI.rotationSpeed * Time.deltaTime
-                );
-            }
-        }
+        enemyAI.FaceMovementDirection(agent.velocity);
         
         // Update animation speed
         if (animator != null)
@@ -150,18 +126,13 @@ public class ChargeState : EnemyState
         isCharging = true;
         
         // Increase speed for charging
-        agent.speed = enemyAI.chargeSpeed;
+        agent.speed = enemyAI.getChargeSpeed();
         
         // Face the player
         if (enemyAI.player != null)
         {
             enemyAI.StartCharge();
-            Vector3 direction = (enemyAI.player.position - stateMachine.transform.position).normalized;
-            direction.y = 0;
-            if (direction != Vector3.zero)
-            {
-                stateMachine.transform.rotation = Quaternion.LookRotation(direction);
-            }
+            enemyAI.FacePlayerInstantly();
         }
     }
     
@@ -176,18 +147,8 @@ public class ChargeState : EnemyState
         {
             float distanceToPlayer = Vector3.Distance(stateMachine.transform.position, enemyAI.player.position);
             
-            if (distanceToPlayer <= enemyAI.meleeRange)
+            if (distanceToPlayer <= enemyAI.getMeleeRange())
             {
-                // Stop moving and face player
-                agent.ResetPath();
-                
-                // Face the player
-                Vector3 direction = (enemyAI.player.position - stateMachine.transform.position).normalized;
-                direction.y = 0;
-                if (direction != Vector3.zero)
-                {
-                    stateMachine.transform.rotation = Quaternion.LookRotation(direction);
-                }
                 
                 // Transition to melee attack state
                 stateMachine.ChangeState(stateMachine.meleeAttackState);
@@ -196,25 +157,11 @@ public class ChargeState : EnemyState
             
             // Move towards player but maintain a comfortable distance
             Vector3 directionToPlayer = (enemyAI.player.position - stateMachine.transform.position).normalized;
-            Vector3 targetPosition = enemyAI.player.position - (directionToPlayer * enemyAI.stoppingDistance);
+            Vector3 targetPosition = enemyAI.player.position - (directionToPlayer * enemyAI.getStoppingDistance());
             agent.SetDestination(targetPosition);
             
             // Smooth rotation during charge
-            if (agent.velocity.magnitude > 0.1f)
-            {
-                Vector3 moveDirection = agent.velocity.normalized;
-                moveDirection.y = 0; // Keep rotation on horizontal plane
-                
-                if (moveDirection != Vector3.zero)
-                {
-                    Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
-                    stateMachine.transform.rotation = Quaternion.Slerp(
-                        stateMachine.transform.rotation, 
-                        targetRotation, 
-                        enemyAI.rotationSpeed * Time.deltaTime
-                    );
-                }
-            }
+            enemyAI.FaceMovementDirection(agent.velocity);
 
             // Update animation speed
             if (animator != null)
@@ -256,7 +203,7 @@ public class ChargeState : EnemyState
         isCharging = false;
         
         // Reset speed back to normal
-        agent.speed = enemyAI.moveSpeed;
+        agent.speed = enemyAI.getMoveSpeed();
         
         // Reset charge cooldown
         enemyAI.ResetChargeCooldown();
@@ -283,13 +230,7 @@ public class MeleeAttackState : EnemyState
         if (enemyAI.player != null)
         {
             enemyAI.StartMeleeAttack();
-            Vector3 direction = (enemyAI.player.position - stateMachine.transform.position).normalized;
-            direction.y = 0;
-            if (direction != Vector3.zero)
-            {
-                stateMachine.transform.rotation = Quaternion.LookRotation(direction);
-            }
-
+            enemyAI.FacePlayerInstantly();
             PerformMeleeAttack();
         }
     }
@@ -299,7 +240,7 @@ public class MeleeAttackState : EnemyState
         attackTimer += Time.deltaTime;
         
         // Check if attack animation is complete
-        if (attackTimer >= enemyAI.meleeAttackDuration)
+        if (attackTimer >= enemyAI.getMeleeAttackDuration())
         {
             // Return to idle state
             stateMachine.ChangeState(stateMachine.idleState);
@@ -313,7 +254,7 @@ public class MeleeAttackState : EnemyState
         float distanceToPlayer = Vector3.Distance(stateMachine.transform.position, enemyAI.player.position);
         Debug.Log("distanceToPlayer: " + distanceToPlayer);
         
-        if (distanceToPlayer <= enemyAI.meleeRange)
+        if (distanceToPlayer <= enemyAI.getMeleeRange())
         {
             // Set animation
             if (animator != null)
@@ -333,7 +274,7 @@ public class MeleeAttackState : EnemyState
             // Spawn attack effect
             if (enemyAI.meleeAttackEffect != null)
             {
-                UnityEngine.Object.Instantiate(enemyAI.meleeAttackEffect, stateMachine.transform.position + stateMachine.transform.forward * enemyAI.meleeRange, stateMachine.transform.rotation);
+                UnityEngine.Object.Instantiate(enemyAI.meleeAttackEffect, stateMachine.transform.position + stateMachine.transform.forward * enemyAI.getMeleeRange(), stateMachine.transform.rotation);
             }
         }
     }
@@ -366,12 +307,7 @@ public class RangeAttackState : EnemyState
         // Face the player
         if (enemyAI.player != null)
         {
-            Vector3 direction = (enemyAI.player.position - stateMachine.transform.position).normalized;
-            direction.y = 0;
-            if (direction != Vector3.zero)
-            {
-                stateMachine.transform.rotation = Quaternion.LookRotation(direction);
-            }
+            enemyAI.FacePlayerInstantly();
         }
         
         // Set animation
@@ -386,14 +322,14 @@ public class RangeAttackState : EnemyState
         attackTimer += Time.deltaTime;
         
         // Perform attack at the right moment
-        if (!hasAttacked && attackTimer >= enemyAI.meleeAttackDelay)
+        if (!hasAttacked && attackTimer >= enemyAI.getMeleeAttackDelay())
         {
             PerformRangeAttack();
             hasAttacked = true;
         }
         
         // Check if attack animation is complete
-        if (attackTimer >= enemyAI.rangeAttackDuration)
+        if (attackTimer >= enemyAI.getRangeAttackDuration())
         {
             // Return to idle state
             stateMachine.ChangeState(stateMachine.idleState);
@@ -415,8 +351,8 @@ public class RangeAttackState : EnemyState
             if (projectileScript != null)
             {
                 projectileScript.SetTarget(enemyAI.player);
-                projectileScript.SetDamage(enemyAI.rangeDamage);
-                projectileScript.SetSpeed(enemyAI.projectileSpeed);
+                projectileScript.SetDamage(enemyAI.getRangeDamage());
+                projectileScript.SetSpeed(enemyAI.getProjectileSpeed());
             }
         }
         

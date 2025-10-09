@@ -4,25 +4,25 @@ using UnityEngine.AI;
 public class EnemyAI : MonoBehaviour
 {
     [Header("AI Settings")]
-    public float chargeRange = 20f;
-    public float meleeRange = 2f;
-    public float moveSpeed = 3f;
-    public float rotationSpeed = 5f;
-    public float chargeSpeed = 6f; // How much faster the enemy moves during charge
-    public float chargeCooldown = 10f; // Cooldown time before enemy can charge again
-    public float stoppingDistance = 0.5f; // How close to get before stopping to attack
+    [SerializeField] private float chargeRange = 20f;
+    [SerializeField] private float meleeRange = 2f;
+    [SerializeField] private float moveSpeed = 3f;
+    [SerializeField] private float rotationSpeed = 5f;
+    [SerializeField] private float chargeSpeed = 6f; // How much faster the enemy moves during charge
+    [SerializeField] private float chargeCooldown = 10f; // Cooldown time before enemy can charge again
+    [SerializeField] private float stoppingDistance = 0.5f; // How close to get before stopping to attack
     
     [Header("Attack Settings")]
     //public float chargeDuration = 1f;
-    public float meleeAttackDelay = 1.5f;
-    public float meleeAttackDuration = 1.5f;
-    public float rangeAttackDuration = 2f;
-    public int meleeDamage = 15;
-    public int rangeDamage = 10;
+    [SerializeField] private float meleeAttackDelay = 1.5f;
+    [SerializeField] private float meleeAttackDuration = 1.5f;
+    [SerializeField] private float rangeAttackDuration = 2f;
+    [SerializeField] private int meleeDamage = 15;
+    [SerializeField] private int rangeDamage = 10;
     
     [Header("Projectile Settings")]
     public GameObject projectilePrefab;
-    public float projectileSpeed = 10f;
+    [SerializeField] private float projectileSpeed = 10f;
     
     [Header("Effects")]
     public GameObject meleeAttackEffect;
@@ -91,7 +91,57 @@ public class EnemyAI : MonoBehaviour
             
         }
     }
-    
+
+    public float getStoppingDistance()
+    {
+        return stoppingDistance;
+    }
+
+    public float getMeleeRange()
+    {
+        return meleeRange;
+    }
+
+    public float getChargeRange()
+    {
+        return chargeRange;
+    }
+
+    public float getChargeSpeed()
+    {
+        return chargeSpeed;
+    }
+
+    public float getMoveSpeed()
+    {
+        return moveSpeed;
+    }
+
+    public float getMeleeAttackDuration()
+    {
+        return meleeAttackDuration;
+    }
+
+    public float getMeleeAttackDelay()
+    {
+        return meleeAttackDelay;
+    }
+
+    public float getRangeAttackDuration()
+    {
+        return rangeAttackDuration;
+    }
+
+    public int getRangeDamage()
+    {
+        return rangeDamage;
+    }
+
+    public float getProjectileSpeed()
+    {
+        return projectileSpeed;
+    }
+
     // Public method to take damage (called by other scripts)
     public void TakeDamage(int damage)
     {
@@ -149,6 +199,59 @@ public class EnemyAI : MonoBehaviour
     public void StartMeleeAttack()
     {
         canMeleeAttack = false;
+    }
+    
+    // Generalized method to face the player
+    public void FacePlayer()
+    {
+        if (player == null) return;
+        
+        Vector3 direction = (player.position - transform.position).normalized;
+        direction.y = 0; // Keep rotation on horizontal plane
+        
+        if (direction != Vector3.zero)
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(direction);
+            transform.rotation = Quaternion.Slerp(
+                transform.rotation, 
+                targetRotation, 
+                rotationSpeed * Time.deltaTime
+            );
+        }
+    }
+    
+    // Generalized method to face player instantly (no smooth rotation)
+    public void FacePlayerInstantly()
+    {
+        if (player == null) return;
+        
+        Vector3 direction = (player.position - transform.position).normalized;
+        direction.y = 0; // Keep rotation on horizontal plane
+        
+        if (direction != Vector3.zero)
+        {
+            transform.rotation = Quaternion.LookRotation(direction);
+        }
+    }
+    
+    // Generalized method to face movement direction (for walking/charging)
+    public void FaceMovementDirection(Vector3 velocity)
+    {
+        if (velocity.magnitude > 0.1f)
+        {
+            Vector3 moveDirection = velocity.normalized;
+            moveDirection.y = 0; // Keep rotation on horizontal plane
+            
+            if (moveDirection != Vector3.zero)
+            {
+                Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
+                transform.rotation = Quaternion.Slerp(
+                    transform.rotation, 
+                    targetRotation, 
+                    rotationSpeed * Time.deltaTime
+                );
+            }
+        }
     }
 
     // Animation event handlers (to prevent missing receiver errors)
