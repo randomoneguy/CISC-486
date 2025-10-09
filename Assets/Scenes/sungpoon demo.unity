@@ -1259,6 +1259,12 @@ MonoBehaviour:
   rangeAttackDuration: 2
   meleeDamage: 15
   rangeDamage: 10
+  laserBeamRange: 15
+  laserBeamDuration: 3
+  laserBeamCooldown: 15
+  laserBeamDamage: 25
+  laserBeamWidth: 0.75
+  laserBeamStateBuffer: 1.5
   projectilePrefab: {fileID: 0}
   projectileSpeed: 10
   meleeAttackEffect: {fileID: 0}

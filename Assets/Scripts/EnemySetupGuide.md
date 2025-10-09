@@ -56,6 +56,13 @@ The following tags and layers have been added to your project:
 - **Range Attack Duration**: 2 (duration of range attack animation)
 - **Projectile Speed**: 10 (speed of ranged projectiles)
 
+### Laser Beam Settings:
+- **Laser Beam Range**: 15 (range of laser beam attack)
+- **Laser Beam Duration**: 3 (how long the laser beam lasts)
+- **Laser Beam Cooldown**: 8 (seconds before enemy can use laser beam again)
+- **Laser Beam Damage**: 25 (damage dealt by laser beam)
+- **Laser Beam Width**: 0.5 (width of the laser beam visual)
+
 ### EnemyHealth Configuration:
 - **Max Health**: 100 (enemy's maximum health)
 - **Death Delay**: 2 (seconds before enemy is destroyed after death)
@@ -69,15 +76,24 @@ The following tags and layers have been added to your project:
    - Enemy immediately starts walking towards player on spawn
    - Maintains comfortable distance (1.5 units) from player
    - Transitions to Idle when close enough but can't charge
-   - Transitions to Charge when player is within charge range
+   - Transitions to Laser Beam when player is within laser range (priority)
+   - Transitions to Charge when player is within charge range (if laser on cooldown)
 
 2. **Idle State**:
    - Enemy stops moving and faces player
-   - Waits for charge cooldown to expire
+   - Waits for attack cooldowns to expire
    - Transitions to Walk if player moves too far
-   - Transitions to Charge when cooldown is ready and player is close
+   - Transitions to Laser Beam when cooldown is ready and player is in range
+   - Transitions to Charge when laser beam on cooldown and player is close
 
-3. **Charge State**:
+3. **Laser Beam State** (Priority Attack):
+   - Enemy stops moving and faces player instantly
+   - Shoots laser beam from eyes in straight line
+   - No movement or rotation during beam
+   - Deals continuous damage to player in beam path
+   - Transitions to Idle when beam duration ends
+
+4. **Charge State**:
    - Enemy increases speed to charge speed (6 units)
    - Charges towards player's current position at high speed
    - **Immediately triggers kick attack when in melee range**

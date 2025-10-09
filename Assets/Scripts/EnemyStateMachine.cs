@@ -40,6 +40,7 @@ public class EnemyStateMachine : MonoBehaviour
     public ChargeState chargeState;
     public MeleeAttackState meleeAttackState;
     public RangeAttackState rangeAttackState;
+    public LaserBeamState laserBeamState;
     
     void Start()
     {
@@ -54,6 +55,7 @@ public class EnemyStateMachine : MonoBehaviour
         chargeState = new ChargeState(this);
         meleeAttackState = new MeleeAttackState(this);
         rangeAttackState = new RangeAttackState(this);
+        laserBeamState = new LaserBeamState(this);
         
         // Start with walk state
         ChangeState(walkState);
