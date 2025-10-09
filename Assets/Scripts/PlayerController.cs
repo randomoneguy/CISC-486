@@ -25,7 +25,6 @@ public class PlayerController : MonoBehaviour
     void MovePlayer()
     {
         Vector2 direction = moveAction.ReadValue<Vector2>();
-        Debug.Log(direction);
         transform.position += new Vector3(direction.x, 0, direction.y) * speed * Time.deltaTime;
     }
 }
