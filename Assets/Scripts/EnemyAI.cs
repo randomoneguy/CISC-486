@@ -20,6 +20,14 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private int meleeDamage = 15;
     [SerializeField] private int rangeDamage = 10;
     
+    [Header("Laser Beam Settings")]
+    [SerializeField] private float laserBeamRange = 15f;
+    [SerializeField] private float laserBeamDuration = 3f;
+    [SerializeField] private float laserBeamCooldown = 15f;
+    [SerializeField] private int laserBeamDamage = 25;
+    [SerializeField] private float laserBeamWidth = 0.5f;
+    [SerializeField] private float laserBeamStateBuffer = 1.5f;
+    
     [Header("Projectile Settings")]
     public GameObject projectilePrefab;
     [SerializeField] private float projectileSpeed = 10f;
@@ -42,6 +50,10 @@ public class EnemyAI : MonoBehaviour
     private bool canCharge = true;
     private bool canMeleeAttack = true;
     private float lastMeleeAttackTime = -2f;
+    
+    // Laser beam cooldown tracking
+    private bool canLaserBeam = true;
+    private float lastLaserBeamTime = -12f;
     
     void Start()
     {
@@ -140,6 +152,54 @@ public class EnemyAI : MonoBehaviour
     public float getProjectileSpeed()
     {
         return projectileSpeed;
+    }
+    
+    // Laser beam getters
+    public float getLaserBeamRange()
+    {
+        return laserBeamRange;
+    }
+    
+    public float getLaserBeamDuration()
+    {
+        return laserBeamDuration;
+    }
+    
+    public float getLaserBeamCooldown()
+    {
+        return laserBeamCooldown;
+    }
+    
+    public int getLaserBeamDamage()
+    {
+        return laserBeamDamage;
+    }
+    
+    public float getLaserBeamWidth()
+    {
+        return laserBeamWidth;
+    }
+
+    public float getLaserBeamStateBuffer()
+    {
+        return laserBeamStateBuffer;
+    }
+    
+    // Laser beam cooldown methods
+    public bool CanLaserBeam()
+    {
+        return canLaserBeam && (Time.time - lastLaserBeamTime >= laserBeamCooldown);
+    }
+    
+    public void StartLaserBeam()
+    {
+        canLaserBeam = false;
+    }
+    
+    public void ResetLaserBeamCooldown()
+    {
+        lastLaserBeamTime = Time.time;
+        canLaserBeam = true;
     }
 
     // Public method to take damage (called by other scripts)
