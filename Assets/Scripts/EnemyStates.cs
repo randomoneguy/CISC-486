@@ -68,7 +68,14 @@ public class WalkState : EnemyState
         
         float distanceToPlayer = Vector3.Distance(stateMachine.transform.position, enemyAI.player.position);
         
-        // Check if we should transition to charge state (only if cooldown is ready)
+        // Check if we should transition to laser beam state (priority over charge)
+        if (distanceToPlayer <= enemyAI.getLaserBeamRange() && enemyAI.CanLaserBeam())
+        {
+            stateMachine.ChangeState(stateMachine.laserBeamState);
+            return;
+        }
+        
+        // Check if we should transition to charge state (only if cooldown is ready and laser beam not available)
         if (distanceToPlayer <= enemyAI.getChargeRange() && enemyAI.CanCharge())
         {
             stateMachine.ChangeState(stateMachine.chargeState);
@@ -284,6 +291,188 @@ public class MeleeAttackState : EnemyState
         Debug.Log("Enemy exiting Melee Attack state");
         
         enemyAI.ResetMeleeAttackCooldown();
+    }
+}
+
+public class LaserBeamState : EnemyState
+{
+    private float beamTimer;
+    private bool hasStartedBeam;
+    private LineRenderer laserLine;
+    private Vector3 currentDirection; // Current beam direction
+    private float trackingSpeed = 2f; // How fast the beam tracks the player
+    
+    public LaserBeamState(EnemyStateMachine stateMachine) : base(stateMachine) { }
+    
+    public override void Enter()
+    {
+        Debug.Log("Enemy entering Laser Beam state");
+        
+        beamTimer = 0f;
+        hasStartedBeam = false;
+        
+        // Stop moving and disable agent
+        agent.ResetPath();
+        agent.enabled = false;
+        
+        // Face the player instantly before starting beam
+        if (enemyAI.player != null)
+        {
+            enemyAI.StartLaserBeam();
+            enemyAI.FacePlayerInstantly();
+            
+            // Initialize the current beam direction
+            Vector3 startPos = stateMachine.transform.position + Vector3.up * 1.5f;
+            currentDirection = (enemyAI.player.position - startPos).normalized;
+            currentDirection.y = 0; // Keep it horizontal
+            currentDirection = currentDirection.normalized;
+        }
+        
+        // Create laser line renderer
+        CreateLaserLine();
+
+        // Set animation
+        /*
+        if (animator != null)
+        {
+            animator.SetTrigger("LaserBeam");
+        }
+        */
+    }
+    
+    public override void Update()
+    {
+        beamTimer += Time.deltaTime;
+        
+        // Start the laser beam after a brief delay
+        if (!hasStartedBeam && beamTimer >= enemyAI.getLaserBeamStateBuffer())
+        {
+            StartLaserBeam();
+            hasStartedBeam = true;
+        }
+        
+        // Continue the laser beam
+        if (hasStartedBeam && beamTimer < enemyAI.getLaserBeamDuration())
+        {
+            UpdateLaserBeam();
+        }
+        else if (hasStartedBeam && beamTimer >= enemyAI.getLaserBeamDuration()) {
+            // Destroy laser line
+            if (laserLine != null)
+            {
+                UnityEngine.Object.Destroy(laserLine.gameObject);
+            }
+        }
+        
+        // Check if state is complete
+        if (beamTimer >= enemyAI.getLaserBeamDuration() + enemyAI.getLaserBeamStateBuffer())
+        {
+            // Return to idle state
+            stateMachine.ChangeState(stateMachine.idleState);
+        }
+    }
+    
+    private void CreateLaserLine()
+    {
+        // Create a LineRenderer for the laser beam
+        GameObject laserObj = new GameObject("LaserBeam");
+        laserObj.transform.SetParent(stateMachine.transform);
+        laserLine = laserObj.AddComponent<LineRenderer>();
+        
+        // Configure the line renderer
+        laserLine.material = new Material(Shader.Find("Sprites/Default"));
+        laserLine.material.color = Color.red;
+        laserLine.startWidth = enemyAI.getLaserBeamWidth();
+        laserLine.endWidth = enemyAI.getLaserBeamWidth();
+        laserLine.positionCount = 2;
+        laserLine.enabled = false; // Start disabled
+    }
+    
+    private void StartLaserBeam()
+    {
+        if (laserLine != null)
+        {
+            laserLine.enabled = true;
+        }
+    }
+    
+    private void UpdateLaserBeam()
+    {
+        if (laserLine == null) return;
+        
+        // Update beam direction to slowly follow player
+        UpdateBeamDirection();
+        
+        // Calculate laser positions
+        Vector3 startPos = stateMachine.transform.position + Vector3.up * 1.5f; // Eye level
+        Vector3 endPos = startPos + currentDirection * enemyAI.getLaserBeamRange();
+        
+        // Set laser line positions
+        laserLine.SetPosition(0, startPos);
+        laserLine.SetPosition(1, endPos);
+        
+        // Deal damage to player if in laser path
+        DealLaserDamage(startPos, currentDirection);
+    }
+    
+    private void UpdateBeamDirection()
+    {
+        if (enemyAI.player == null) return;
+        
+        // Calculate direction to player
+        Vector3 startPos = stateMachine.transform.position + Vector3.up * 1.5f;
+        Vector3 toPlayer = (enemyAI.player.position - startPos).normalized;
+        toPlayer.y = 0; // Keep it horizontal
+        toPlayer = toPlayer.normalized;
+        
+        // Smoothly rotate current direction towards player
+        currentDirection = Vector3.Slerp(currentDirection, toPlayer, trackingSpeed * Time.deltaTime);
+        currentDirection.y = 0; // Ensure it stays horizontal
+        currentDirection = currentDirection.normalized;
+        
+        // Rotate the enemy model to face the beam direction
+        if (currentDirection != Vector3.zero)
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(currentDirection);
+            stateMachine.transform.rotation = Quaternion.Slerp(
+                stateMachine.transform.rotation, 
+                targetRotation, 
+                trackingSpeed * Time.deltaTime
+            );
+        }
+    }
+    
+    private void DealLaserDamage(Vector3 startPos, Vector3 direction)
+    {
+        // Raycast to check for player in laser path
+        RaycastHit[] hits = Physics.RaycastAll(startPos, direction, enemyAI.getLaserBeamRange());
+        
+        foreach (RaycastHit hit in hits)
+        {
+            if (hit.collider.CompareTag("Player"))
+            {
+                /* 
+                // Deal damage to player
+                PlayerHealth playerHealth = hit.collider.GetComponent<PlayerHealth>();
+                if (playerHealth != null)
+                {
+                    playerHealth.TakeDamage(enemyAI.getLaserBeamDamage());
+                }
+                */
+                break; // Only damage once per frame
+            }
+        }
+    }
+    
+    public override void Exit()
+    {
+        Debug.Log("Enemy exiting Laser Beam state");
+        
+        // Re-enable agent
+        agent.enabled = true;
+        
+        // Reset cooldown
+        enemyAI.ResetLaserBeamCooldown();
     }
 }
 
