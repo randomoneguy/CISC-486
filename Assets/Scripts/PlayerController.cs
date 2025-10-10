@@ -43,6 +43,7 @@ public class PlayerController : MonoBehaviour
 
     void MovePlayer()
     {
+        // TODO: update this old input system to new one, if there is time
         Vector2 input = moveAction.ReadValue<Vector2>();
 
         moveDir = camForward * input.y + camRight * input.x;
