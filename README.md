@@ -25,9 +25,8 @@ From Charge they can transition to Kick immediate without Idle if they charged w
 From Charge they can transition to Walk if duration of Charge runs out before reaching the player (ie player dashes away) <br>
 From Laser they will always transition to Idle after laser duration + an brief offset is over so they can decide their next course of action from Idle<br>
 
-<iframe width="560" height="315" src="https://youtu.be/oilqU67yj-Y" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
-This is the demo video for assignment 2 report<br>
+This is the demo video link for assignment 2 report: https://youtu.be/oilqU67yj-Y<br>
 
 ## 📌 Overview
 Touhou Souls is designed as a 3D arena boss rush game. The player(s), originally from the Touhou universe, namely Reimu and/or Marisa, will be transported to an arena in another world. In the arena, they will have to survive and win against numerous boss encounters to beat the game.
