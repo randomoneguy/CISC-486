@@ -1255,7 +1255,7 @@ MonoBehaviour:
   meleeRange: 1.75
   moveSpeed: 1.5
   rotationSpeed: 3
-  chargeSpeed: 6
+  chargeSpeed: 6.5
   chargeCooldown: 10
   stoppingDistance: 1.5
   meleeAttackDelay: 2.5
