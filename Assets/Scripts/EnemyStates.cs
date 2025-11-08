@@ -184,23 +184,14 @@ public class ChargeState : EnemyState
             }
         }
         
-        // Check if charge is complete
-        /*
-        if (chargeTimer >= enemyAI.chargeDuration)
+        // Check if charge duration has expired
+        if (chargeTimer >= enemyAI.getChargeDuration())
         {
-            // Decide between melee or range attack based on distance
-            float distanceToPlayer = Vector3.Distance(stateMachine.transform.position, enemyAI.player.position);
-            
-            if (distanceToPlayer <= enemyAI.meleeRange)
-            {
-                stateMachine.ChangeState(stateMachine.meleeAttackState);
-            }
-            else
-            {
-                stateMachine.ChangeState(stateMachine.rangeAttackState);
-            }
+            Debug.Log("Charge duration expired, returning to idle");
+            // Charge duration expired, return to idle state
+            stateMachine.ChangeState(stateMachine.idleState);
+            return;
         }
-        */
     }
     
     public override void Exit()

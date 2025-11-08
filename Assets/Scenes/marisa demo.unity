@@ -914,7 +914,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3862277631971027947, guid: 7ae956b4f54394e80818898d8f4d30c6, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 3862277631971027947, guid: 7ae956b4f54394e80818898d8f4d30c6, type: 3}
       propertyPath: m_TagString
@@ -1262,6 +1262,7 @@ MonoBehaviour:
   chargeSpeed: 6.5
   chargeCooldown: 10
   stoppingDistance: 1.5
+  chargeDuration: 1.5
   meleeAttackDelay: 2.5
   meleeAttackDuration: 2
   rangeAttackDuration: 2

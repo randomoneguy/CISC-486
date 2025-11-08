@@ -13,7 +13,7 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private float stoppingDistance = 0.5f; // How close to get before stopping to attack
     
     [Header("Attack Settings")]
-    //public float chargeDuration = 1f;
+    [SerializeField] private float chargeDuration = 1.5f; // How long the enemy charges before giving up
     [SerializeField] private float meleeAttackDelay = 1.5f;
     [SerializeField] private float meleeAttackDuration = 1.5f;
     [SerializeField] private float rangeAttackDuration = 2f;
@@ -122,6 +122,11 @@ public class EnemyAI : MonoBehaviour
     public float getChargeSpeed()
     {
         return chargeSpeed;
+    }
+    
+    public float getChargeDuration()
+    {
+        return chargeDuration;
     }
 
     public float getMoveSpeed()
