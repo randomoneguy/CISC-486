@@ -94,6 +94,14 @@ public abstract class PlayerAttackStateBase : PlayerState
         // Animation is complete when normalized time >= 1.0
         return stateInfo.normalizedTime >= 1.0f;
     }
+
+    public void attackHit(Collider col)
+    {
+        Collider[] cols = Physics.OverlapBox(col.bounds.center, col.bounds.extents, col.transform.rotation, LayerMask.GetMask("Enemy"));
+        foreach (Collider c in cols){
+            Debug.Log(c.name);
+        }
+    }
 }
 
 public class PlayerAttack1State : PlayerAttackStateBase
@@ -139,6 +147,8 @@ public class PlayerAttack1State : PlayerAttackStateBase
                 return;
             }
         }
+
+        attackHit(atkHitboxes[0]);
         
         // Check if attack input was pressed during combo window (queue it)
         if (IsInComboWindow() && stateMachine.playerController.IsAttackPressed())
@@ -218,7 +228,9 @@ public class PlayerAttack2State : PlayerAttackStateBase
                 return;
             }
         }
-        
+
+        attackHit(atkHitboxes[1]);
+
         // Check if attack input was pressed during combo window (queue it, don't transition immediately)
         if (IsInComboWindow() && stateMachine.playerController.IsAttackPressed())
         {
@@ -290,7 +302,9 @@ public class PlayerAttack3State : PlayerAttackStateBase
                 return;
             }
         }
-        
+
+        attackHit(atkHitboxes[2]);
+
         // No combo continuation from attack 3, just wait for completion
         // Check if attack animation is complete
         if (IsAnimationComplete())
