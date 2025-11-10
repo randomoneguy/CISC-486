@@ -7,6 +7,7 @@ public abstract class PlayerState
     protected PlayerController playerController;
     protected Rigidbody rb;
     protected Animator animator;
+    protected Collider[] atkHitboxes;
     
     public PlayerState(PlayerStateMachine stateMachine)
     {
@@ -14,6 +15,7 @@ public abstract class PlayerState
         this.playerController = stateMachine.playerController;
         this.rb = stateMachine.rb;
         this.animator = stateMachine.animator;
+        this.atkHitboxes = stateMachine.atkHitboxes;
     }
     
     public virtual void Enter() { }
@@ -31,6 +33,7 @@ public class PlayerStateMachine : MonoBehaviour
     public PlayerController playerController;
     public Rigidbody rb;
     public Animator animator;
+    public Collider[] atkHitboxes;
     
     // State instances
     public PlayerIdleState idleState;
