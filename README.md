@@ -27,6 +27,7 @@ From Laser they will always transition to Idle after laser duration + an brief o
 
 
 This is the demo video link for assignment 2 report: https://youtu.be/oilqU67yj-Y<br>
+This is the demo video link for assignment 2 report: https://youtu.be/dBWuCupH4aY<br>
 
 ## 📌 Overview
 Touhou Souls is designed as a 3D arena boss rush game. The player(s), originally from the Touhou universe, namely Reimu and/or Marisa, will be transported to an arena in another world. In the arena, they will have to survive and win against numerous boss encounters to beat the game.
