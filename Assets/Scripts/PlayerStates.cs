@@ -31,6 +31,8 @@ public abstract class PlayerAttackStateBase : PlayerState
     protected float comboWindowEnd = 0.8f;
     protected float movementResumeTime = 0.9f;
     protected bool animationStarted = false;
+
+    protected bool attackDmg = true;
     
     public PlayerAttackStateBase(PlayerStateMachine stateMachine, string stateName, int comboNum) : base(stateMachine)
     {
@@ -99,7 +101,11 @@ public abstract class PlayerAttackStateBase : PlayerState
     {
         Collider[] cols = Physics.OverlapBox(col.bounds.center, col.bounds.extents, col.transform.rotation, LayerMask.GetMask("Enemy"));
         foreach (Collider c in cols){
-            Debug.Log(c.name);
+            var atm = c.GetComponent<EnemyHealth>();
+            if (atm != null)
+            {
+                atm.TakeDamage(10);
+            }
         }
     }
 }
@@ -148,7 +154,13 @@ public class PlayerAttack1State : PlayerAttackStateBase
             }
         }
 
-        attackHit(atkHitboxes[0]);
+        if (attackDmg)
+        {
+            attackHit(atkHitboxes[0]);
+            attackDmg = false;
+            Debug.Log(animator.GetCurrentAnimatorStateInfo(7));
+        }
+        
         
         // Check if attack input was pressed during combo window (queue it)
         if (IsInComboWindow() && stateMachine.playerController.IsAttackPressed())
@@ -169,6 +181,7 @@ public class PlayerAttack1State : PlayerAttackStateBase
         if (IsAnimationComplete())
         {
             Debug.Log("attack 1 complete");
+            attackDmg = true;
             
             // If combo was queued, transition to next attack
             if (comboQueued)
