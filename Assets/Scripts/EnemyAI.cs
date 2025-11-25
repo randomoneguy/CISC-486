@@ -1,7 +1,8 @@
 using UnityEngine;
 using UnityEngine.AI;
+using Unity.Netcode;
 
-public class EnemyAI : MonoBehaviour
+public class EnemyAI : NetworkBehaviour
 {
     [Header("AI Settings")]
     [SerializeField] private float chargeRange = 20f;
@@ -37,8 +38,11 @@ public class EnemyAI : MonoBehaviour
     public GameObject rangeAttackEffect;
     
     // Public references
-    public Transform player;
+    public Transform targetPlayer; // Current target player
     public EnemyStateMachine stateMachine;
+    
+    // Multiplayer: Find all players
+    private Transform[] allPlayers;
     
     // Private components
     private NavMeshAgent agent;
@@ -55,18 +59,18 @@ public class EnemyAI : MonoBehaviour
     private bool canLaserBeam = true;
     private float lastLaserBeamTime = -12f;
     
-    void Start()
+    public override void OnNetworkSpawn()
     {
+        base.OnNetworkSpawn();
+        
+        // Only run AI on the server
+        if (!IsServer) return;
+        
         // Get components
         agent = GetComponent<NavMeshAgent>();
         animator = GetComponent<Animator>();
         enemyHealth = GetComponent<EnemyHealth>();
         stateMachine = GetComponent<EnemyStateMachine>();
-        
-        // Find player
-        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-        if (playerObj != null)
-            player = playerObj.transform;
         
         // Set up agent
         agent.speed = moveSpeed;
@@ -78,15 +82,76 @@ public class EnemyAI : MonoBehaviour
         {
             stateMachine.enemyAI = this;
         }
+        
+        // Find players (will be called after network spawn)
+        FindPlayers();
+    }
+
+    private void FindPlayers()
+    {
+        // Find all player objects in the scene
+        GameObject[] playerObjects = GameObject.FindGameObjectsWithTag("Player");
+        System.Collections.Generic.List<Transform> playerList = new System.Collections.Generic.List<Transform>();
+        
+        foreach (GameObject playerObj in playerObjects)
+        {
+            NetworkObject netObj = playerObj.GetComponent<NetworkObject>();
+            // Only target spawned network players
+            if (netObj != null && netObj.IsSpawned)
+            {
+                playerList.Add(playerObj.transform);
+            }
+        }
+        
+        allPlayers = playerList.ToArray();
+        
+        // Set initial target to closest player
+        UpdateTargetPlayer();
+    }
+
+    private void UpdateTargetPlayer()
+    {
+        if (allPlayers == null || allPlayers.Length == 0)
+        {
+            FindPlayers();
+            return;
+        }
+        
+        // Find closest player
+        float closestDistance = float.MaxValue;
+        Transform closestPlayer = null;
+        
+        foreach (Transform player in allPlayers)
+        {
+            if (player == null) continue;
+            
+            float distance = Vector3.Distance(transform.position, player.position);
+            if (distance < closestDistance)
+            {
+                closestDistance = distance;
+                closestPlayer = player;
+            }
+        }
+        
+        targetPlayer = closestPlayer;
     }
     
     void Update()
     {
+        // Only run AI on the server
+        if (!IsServer) return;
+        
         // Check if enemy is dead
         if (enemyHealth != null && enemyHealth.IsDead())
         {
             // Handle death state here if needed
             return;
+        }
+        
+        // Update target player periodically (every 0.5 seconds)
+        if (Time.frameCount % 30 == 0) // Roughly every 0.5 seconds at 60fps
+        {
+            UpdateTargetPlayer();
         }
         
         // Update animator speed
@@ -219,15 +284,15 @@ public class EnemyAI : MonoBehaviour
     // Method to check if player is in range
     public bool IsPlayerInRange(float range)
     {
-        if (player == null) return false;
-        return Vector3.Distance(transform.position, player.position) <= range;
+        if (targetPlayer == null) return false;
+        return Vector3.Distance(transform.position, targetPlayer.position) <= range;
     }
     
     // Method to get distance to player
     public float GetDistanceToPlayer()
     {
-        if (player == null) return float.MaxValue;
-        return Vector3.Distance(transform.position, player.position);
+        if (targetPlayer == null) return float.MaxValue;
+        return Vector3.Distance(transform.position, targetPlayer.position);
     }
     
     // Method to check if enemy can charge
@@ -269,9 +334,9 @@ public class EnemyAI : MonoBehaviour
     // Generalized method to face the player
     public void FacePlayer()
     {
-        if (player == null) return;
+        if (targetPlayer == null) return;
         
-        Vector3 direction = (player.position - transform.position).normalized;
+        Vector3 direction = (targetPlayer.position - transform.position).normalized;
         direction.y = 0; // Keep rotation on horizontal plane
         
         if (direction != Vector3.zero)
@@ -288,9 +353,9 @@ public class EnemyAI : MonoBehaviour
     // Generalized method to face player instantly (no smooth rotation)
     public void FacePlayerInstantly()
     {
-        if (player == null) return;
+        if (targetPlayer == null) return;
         
-        Vector3 direction = (player.position - transform.position).normalized;
+        Vector3 direction = (targetPlayer.position - transform.position).normalized;
         direction.y = 0; // Keep rotation on horizontal plane
         
         if (direction != Vector3.zero)
@@ -344,10 +409,10 @@ public class EnemyAI : MonoBehaviour
         Gizmos.DrawWireSphere(transform.position, meleeRange);
         
         // Player direction
-        if (player != null)
+        if (targetPlayer != null)
         {
             Gizmos.color = Color.green;
-            Gizmos.DrawLine(transform.position, player.position);
+            Gizmos.DrawLine(transform.position, targetPlayer.position);
         }
     }
 }

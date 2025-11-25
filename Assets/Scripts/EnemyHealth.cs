@@ -1,10 +1,18 @@
 using UnityEngine;
+using Unity.Netcode;
+using System.Collections;
 
-public class EnemyHealth : MonoBehaviour
+public class EnemyHealth : NetworkBehaviour
 {
     [Header("Health Settings")]
     public int maxHealth = 100;
-    public int currentHealth;
+    
+    // Network variable for health synchronization
+    private NetworkVariable<int> currentHealth = new NetworkVariable<int>(
+        100,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
     
     [Header("Death Settings")]
     public float deathDelay = 2f;
@@ -19,9 +27,19 @@ public class EnemyHealth : MonoBehaviour
     private AudioSource audioSource;
     private Animator animator;
     
-    void Start()
+    public override void OnNetworkSpawn()
     {
-        currentHealth = maxHealth;
+        base.OnNetworkSpawn();
+        
+        // Initialize health on server
+        if (IsServer)
+        {
+            currentHealth.Value = maxHealth;
+        }
+        
+        // Subscribe to health changes
+        currentHealth.OnValueChanged += OnHealthChanged;
+        
         audioSource = GetComponent<AudioSource>();
         animator = GetComponent<Animator>();
         
@@ -31,14 +49,26 @@ public class EnemyHealth : MonoBehaviour
             audioSource = gameObject.AddComponent<AudioSource>();
         }
     }
-    
-    public void TakeDamage(int damage)
+
+    public override void OnNetworkDespawn()
     {
-        if (isDead) return;
-        
-        currentHealth -= damage;
-        currentHealth = Mathf.Max(0, currentHealth);
-        
+        currentHealth.OnValueChanged -= OnHealthChanged;
+        base.OnNetworkDespawn();
+    }
+
+    private void OnHealthChanged(int oldValue, int newValue)
+    {
+        // This is called on all clients when health changes
+        // You can add visual feedback here if needed
+        if (newValue < oldValue && newValue > 0)
+        {
+            // Health decreased - play damage effects on all clients
+            PlayDamageEffects();
+        }
+    }
+
+    private void PlayDamageEffects()
+    {
         // Play damage sound
         if (damageSounds != null && damageSounds.Length > 0)
         {
@@ -60,9 +90,20 @@ public class EnemyHealth : MonoBehaviour
                 }
             }
         }
+    }
+    
+    public void TakeDamage(int damage)
+    {
+        // Only server can process damage
+        if (!IsServer) return;
+        if (isDead) return;
+        
+        int newHealth = currentHealth.Value - damage;
+        newHealth = Mathf.Max(0, newHealth);
+        currentHealth.Value = newHealth;
         
         // Check if dead
-        if (currentHealth <= 0)
+        if (currentHealth.Value <= 0)
         {
             Die();
         }
@@ -70,35 +111,25 @@ public class EnemyHealth : MonoBehaviour
     
     public void Heal(int healAmount)
     {
+        // Only server can process healing
+        if (!IsServer) return;
         if (isDead) return;
         
-        currentHealth += healAmount;
-        currentHealth = Mathf.Min(maxHealth, currentHealth);
+        int newHealth = currentHealth.Value + healAmount;
+        newHealth = Mathf.Min(maxHealth, newHealth);
+        currentHealth.Value = newHealth;
     }
     
     public void Die()
     {
+        // Only server can process death
+        if (!IsServer) return;
         if (isDead) return;
         
         isDead = true;
         
-        // Play death sound
-        if (deathSound != null && audioSource != null)
-        {
-            audioSource.PlayOneShot(deathSound);
-        }
-        
-        // Spawn death effects
-        if (deathEffects != null)
-        {
-            foreach (GameObject effect in deathEffects)
-            {
-                if (effect != null)
-                {
-                    Instantiate(effect, transform.position, transform.rotation);
-                }
-            }
-        }
+        // Play death effects on all clients
+        PlayDeathEffectsClientRpc();
         
         // Disable AI and other components
         EnemyAI enemyAI = GetComponent<EnemyAI>();
@@ -119,8 +150,41 @@ public class EnemyHealth : MonoBehaviour
             animator.SetTrigger("Death");
         }
         
-        // Destroy after delay
-        Destroy(gameObject, deathDelay);
+        // Despawn after delay (server only)
+        StartCoroutine(DespawnAfterDelay());
+    }
+
+    [ClientRpc]
+    private void PlayDeathEffectsClientRpc()
+    {
+        // Play death sound
+        if (deathSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(deathSound);
+        }
+        
+        // Spawn death effects
+        if (deathEffects != null)
+        {
+            foreach (GameObject effect in deathEffects)
+            {
+                if (effect != null)
+                {
+                    Instantiate(effect, transform.position, transform.rotation);
+                }
+            }
+        }
+    }
+
+    private IEnumerator DespawnAfterDelay()
+    {
+        yield return new WaitForSeconds(deathDelay);
+        
+        NetworkObject networkObject = GetComponent<NetworkObject>();
+        if (networkObject != null && networkObject.IsSpawned)
+        {
+            networkObject.Despawn(true);
+        }
     }
     
     public bool IsDead()
@@ -130,12 +194,12 @@ public class EnemyHealth : MonoBehaviour
     
     public float GetHealthPercentage()
     {
-        return (float)currentHealth / maxHealth;
+        return (float)currentHealth.Value / maxHealth;
     }
     
     public int GetCurrentHealth()
     {
-        return currentHealth;
+        return currentHealth.Value;
     }
     
     public int GetMaxHealth()
@@ -146,7 +210,8 @@ public class EnemyHealth : MonoBehaviour
     // Method to reset health (useful for respawning)
     public void ResetHealth()
     {
-        currentHealth = maxHealth;
+        if (!IsServer) return;
+        currentHealth.Value = maxHealth;
         isDead = false;
     }
 }

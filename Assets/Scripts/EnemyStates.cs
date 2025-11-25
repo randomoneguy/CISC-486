@@ -22,9 +22,9 @@ public class IdleState : EnemyState
     
     public override void Update()
     {
-        if (enemyAI.player == null) return;
+        if (enemyAI.targetPlayer == null) return;
         
-        float distanceToPlayer = Vector3.Distance(stateMachine.transform.position, enemyAI.player.position);
+        float distanceToPlayer = Vector3.Distance(stateMachine.transform.position, enemyAI.targetPlayer.position);
         
         // transitions from idle
         // If player moves too far away, start walking
@@ -64,9 +64,9 @@ public class WalkState : EnemyState
     
     public override void Update()
     {
-        if (enemyAI.player == null) return;
+        if (enemyAI.targetPlayer == null) return;
         
-        float distanceToPlayer = Vector3.Distance(stateMachine.transform.position, enemyAI.player.position);
+        float distanceToPlayer = Vector3.Distance(stateMachine.transform.position, enemyAI.targetPlayer.position);
         
         // Check if we should transition to laser beam state (priority over charge)
         if (distanceToPlayer <= enemyAI.getLaserBeamRange() && enemyAI.CanLaserBeam())
@@ -91,8 +91,8 @@ public class WalkState : EnemyState
         }
         
         // Move towards player but maintain a comfortable distance
-        Vector3 directionToPlayer = (enemyAI.player.position - stateMachine.transform.position).normalized;
-        Vector3 targetPosition = enemyAI.player.position - (directionToPlayer * enemyAI.getStoppingDistance());
+        Vector3 directionToPlayer = (enemyAI.targetPlayer.position - stateMachine.transform.position).normalized;
+        Vector3 targetPosition = enemyAI.targetPlayer.position - (directionToPlayer * enemyAI.getStoppingDistance());
         agent.SetDestination(targetPosition);
         
         // Smooth rotation during movement
@@ -136,7 +136,7 @@ public class ChargeState : EnemyState
         agent.speed = enemyAI.getChargeSpeed();
         
         // Face the player
-        if (enemyAI.player != null)
+        if (enemyAI.targetPlayer != null)
         {
             enemyAI.StartCharge();
             enemyAI.FacePlayerInstantly();
@@ -150,9 +150,9 @@ public class ChargeState : EnemyState
         chargeTimer += Time.deltaTime;
         
         // Check if we're in melee range during charge - trigger kick attack immediately
-        if (enemyAI.player != null)
+        if (enemyAI.targetPlayer != null)
         {
-            float distanceToPlayer = Vector3.Distance(stateMachine.transform.position, enemyAI.player.position);
+            float distanceToPlayer = Vector3.Distance(stateMachine.transform.position, enemyAI.targetPlayer.position);
             
             if (distanceToPlayer <= enemyAI.getMeleeRange())
             {
@@ -163,8 +163,8 @@ public class ChargeState : EnemyState
             }
             
             // Move towards player but maintain a comfortable distance
-            Vector3 directionToPlayer = (enemyAI.player.position - stateMachine.transform.position).normalized;
-            Vector3 targetPosition = enemyAI.player.position - (directionToPlayer * enemyAI.getStoppingDistance());
+            Vector3 directionToPlayer = (enemyAI.targetPlayer.position - stateMachine.transform.position).normalized;
+            Vector3 targetPosition = enemyAI.targetPlayer.position - (directionToPlayer * enemyAI.getStoppingDistance());
             agent.SetDestination(targetPosition);
             
             // Smooth rotation during charge
@@ -225,7 +225,7 @@ public class MeleeAttackState : EnemyState
         agent.ResetPath();
         
         // Face the player
-        if (enemyAI.player != null)
+        if (enemyAI.targetPlayer != null)
         {
             enemyAI.StartMeleeAttack();
             enemyAI.FacePlayerInstantly();
@@ -247,9 +247,9 @@ public class MeleeAttackState : EnemyState
     
     private void PerformMeleeAttack()
     {
-        if (enemyAI.player == null) return;
+        if (enemyAI.targetPlayer == null) return;
         
-        float distanceToPlayer = Vector3.Distance(stateMachine.transform.position, enemyAI.player.position);
+        float distanceToPlayer = Vector3.Distance(stateMachine.transform.position, enemyAI.targetPlayer.position);
         Debug.Log("distanceToPlayer: " + distanceToPlayer);
         
         if (distanceToPlayer <= enemyAI.getMeleeRange())
@@ -307,14 +307,14 @@ public class LaserBeamState : EnemyState
         agent.enabled = false;
         
         // Face the player instantly before starting beam
-        if (enemyAI.player != null)
+        if (enemyAI.targetPlayer != null)
         {
             enemyAI.StartLaserBeam();
             enemyAI.FacePlayerInstantly();
             
             // Initialize the current beam direction
             Vector3 startPos = stateMachine.transform.position + Vector3.up * 1.5f;
-            currentDirection = (enemyAI.player.position - startPos).normalized;
+            currentDirection = (enemyAI.targetPlayer.position - startPos).normalized;
             currentDirection.y = 0; // Keep it horizontal
             currentDirection = currentDirection.normalized;
         }
@@ -408,11 +408,11 @@ public class LaserBeamState : EnemyState
     
     private void UpdateBeamDirection()
     {
-        if (enemyAI.player == null) return;
+        if (enemyAI.targetPlayer == null) return;
         
         // Calculate direction to player
         Vector3 startPos = stateMachine.transform.position + Vector3.up * 1.5f;
-        Vector3 toPlayer = (enemyAI.player.position - startPos).normalized;
+        Vector3 toPlayer = (enemyAI.targetPlayer.position - startPos).normalized;
         toPlayer.y = 0; // Keep it horizontal
         toPlayer = toPlayer.normalized;
         
@@ -485,7 +485,7 @@ public class RangeAttackState : EnemyState
         agent.ResetPath();
         
         // Face the player
-        if (enemyAI.player != null)
+        if (enemyAI.targetPlayer != null)
         {
             enemyAI.FacePlayerInstantly();
         }
@@ -518,7 +518,7 @@ public class RangeAttackState : EnemyState
     
     private void PerformRangeAttack()
     {
-        if (enemyAI.player == null) return;
+        if (enemyAI.targetPlayer == null) return;
         
         // Create projectile
         if (enemyAI.projectilePrefab != null)
@@ -530,7 +530,7 @@ public class RangeAttackState : EnemyState
             EnemyProjectile projectileScript = projectile.GetComponent<EnemyProjectile>();
             if (projectileScript != null)
             {
-                projectileScript.SetTarget(enemyAI.player);
+                projectileScript.SetTarget(enemyAI.targetPlayer);
                 projectileScript.SetDamage(enemyAI.getRangeDamage());
                 projectileScript.SetSpeed(enemyAI.getProjectileSpeed());
             }
