@@ -158,7 +158,6 @@ public class PlayerAttack1State : PlayerAttackStateBase
         {
             attackHit(atkHitboxes[0]);
             attackDmg = false;
-            Debug.Log(animator.GetCurrentAnimatorStateInfo(7));
         }
         
         
