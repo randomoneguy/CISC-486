@@ -83,22 +83,51 @@ public class PlayerController : NetworkBehaviour
     {
         base.OnNetworkSpawn();
         
-        // Only setup input for the owner
-        if (!IsOwner) return;
-
-        playerInput = GetComponent<PlayerInput>();
-        moveAction = playerInput.actions.FindAction("Move");
-        attackAction = playerInput.actions.FindAction("Attack");
+        // Get components that all clients need
         rb = GetComponent<Rigidbody>();
+        animator = GetComponent<Animator>();
+        stateMachine = GetComponent<PlayerStateMachine>();
+        
+        if (rb != null)
+        {
+            rb.freezeRotation = true;
+        }
+
+        // Only setup input for the owner
+        if (!IsOwner) 
+        {
+            // Disable PlayerInput for non-owners
+            playerInput = GetComponent<PlayerInput>();
+            if (playerInput != null)
+            {
+                playerInput.enabled = false;
+            }
+            return;
+        }
+
+        // Owner setup - enable input
+        playerInput = GetComponent<PlayerInput>();
+        if (playerInput != null)
+        {
+            playerInput.enabled = true;
+            moveAction = playerInput.actions.FindAction("Move");
+            attackAction = playerInput.actions.FindAction("Attack");
+            
+            if (moveAction == null || attackAction == null)
+            {
+                Debug.LogError("PlayerInput actions not found! Make sure 'Move' and 'Attack' actions exist in your Input Actions asset.");
+            }
+        }
+        else
+        {
+            Debug.LogError("PlayerInput component not found! Please add it to the player prefab.");
+        }
         
         // Get state machine component
-        stateMachine = GetComponent<PlayerStateMachine>();
         if (stateMachine == null)
         {
             Debug.LogError("PlayerStateMachine component not found! Please add it to the player GameObject.");
         }
-
-        rb.freezeRotation = true;
 
         // Find camera (could be in scene or on player)
         if (cam == null)
@@ -186,6 +215,8 @@ public class PlayerController : NetworkBehaviour
         camRight.Normalize();
 
         moveDir = camForward * input.y + camRight * input.x;
+        
+        // Update animator - NetworkAnimator will sync this automatically
         if (animator != null)
         {
             if (input.x != 0 || input.y != 0)

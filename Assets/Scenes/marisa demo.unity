@@ -2790,7 +2790,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   menuPanel: {fileID: 0}
-  ipAddressInput: {fileID: 0}
+  ipAddressInput: {fileID: 968641809}
   hostButton: {fileID: 863475711}
   clientButton: {fileID: 1283366063}
   disconnectButton: {fileID: 0}
