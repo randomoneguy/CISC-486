@@ -34,6 +34,13 @@ public class NetworkPlayerSpawner : NetworkBehaviour
     {
         if (!IsServer) return;
 
+        // Skip host (clientId 0) - it's already spawned in OnNetworkSpawn
+        // Only spawn for actual clients connecting
+        if (clientId == NetworkManager.Singleton.LocalClientId && NetworkManager.Singleton.IsHost)
+        {
+            return;
+        }
+
         // Spawn player for the newly connected client
         SpawnPlayer(clientId);
     }
