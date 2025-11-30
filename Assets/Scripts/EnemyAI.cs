@@ -63,6 +63,19 @@ public class EnemyAI : NetworkBehaviour
     {
         base.OnNetworkSpawn();
         
+        // Ensure enemy is owned by the server
+        NetworkObject networkObject = GetComponent<NetworkObject>();
+        if (networkObject != null && IsServer && NetworkManager.Singleton != null)
+        {
+            // Change ownership to server if not already owned by server
+            // ServerClientId is 0, which represents the server
+            if (networkObject.OwnerClientId != NetworkManager.ServerClientId)
+            {
+                networkObject.ChangeOwnership(NetworkManager.ServerClientId);
+                Debug.Log($"Enemy ownership changed to server. Previous owner: {networkObject.OwnerClientId}");
+            }
+        }
+        
         // Only run AI on the server
         if (!IsServer) return;
         
@@ -83,8 +96,33 @@ public class EnemyAI : NetworkBehaviour
             stateMachine.enemyAI = this;
         }
         
+        // Subscribe to client connection events to refresh player list when new players connect
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
+        }
+        
         // Find players (will be called after network spawn)
         FindPlayers();
+    }
+    
+    public override void OnNetworkDespawn()
+    {
+        // Unsubscribe from client connection events
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+        }
+        base.OnNetworkDespawn();
+    }
+    
+    private void OnClientConnected(ulong clientId)
+    {
+        // When a new client connects, refresh the player list so enemy can target them
+        if (IsServer)
+        {
+            FindPlayers();
+        }
     }
 
     private void FindPlayers()
@@ -104,16 +142,16 @@ public class EnemyAI : NetworkBehaviour
         }
         
         allPlayers = playerList.ToArray();
-        
-        // Set initial target to closest player
-        UpdateTargetPlayer();
     }
 
     private void UpdateTargetPlayer()
     {
+        // Always refresh player list to ensure we have all current players (including newly connected ones)
+        // This ensures the enemy can target clients that connect after the enemy spawns
+        FindPlayers();
+        
         if (allPlayers == null || allPlayers.Length == 0)
         {
-            FindPlayers();
             return;
         }
         
@@ -149,7 +187,9 @@ public class EnemyAI : NetworkBehaviour
         }
         
         // Update target player periodically (every 0.5 seconds)
-        if (Time.frameCount % 30 == 0) // Roughly every 0.5 seconds at 60fps
+        if (Time.frameCount % 30 == 0 // Roughly every 0.5 seconds at 60fps
+            && stateMachine != null
+            && stateMachine.currentState == stateMachine.walkState)
         {
             UpdateTargetPlayer();
         }

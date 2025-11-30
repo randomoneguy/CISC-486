@@ -7,6 +7,7 @@ public class IdleState : EnemyState
     
     public override void Enter()
     {
+        if (!enemyAI.IsServer) return;
         Debug.Log("Enemy entering Idle state");
         
         // Stop moving
@@ -23,7 +24,7 @@ public class IdleState : EnemyState
     public override void Update()
     {
         if (enemyAI.targetPlayer == null) return;
-        
+        if (!enemyAI.IsServer) return;
         float distanceToPlayer = Vector3.Distance(stateMachine.transform.position, enemyAI.targetPlayer.position);
         
         // transitions from idle
@@ -48,6 +49,7 @@ public class IdleState : EnemyState
     
     public override void Exit()
     {
+        if (!enemyAI.IsServer) return;
         Debug.Log("Enemy exiting Idle state");
     }
 }
@@ -58,6 +60,7 @@ public class WalkState : EnemyState
     
     public override void Enter()
     {
+        if (!enemyAI.IsServer) return;
         Debug.Log("Enemy entering Walk state");
 
     }
@@ -65,7 +68,7 @@ public class WalkState : EnemyState
     public override void Update()
     {
         if (enemyAI.targetPlayer == null) return;
-        
+        if (!enemyAI.IsServer) return;
         float distanceToPlayer = Vector3.Distance(stateMachine.transform.position, enemyAI.targetPlayer.position);
         
         // Check if we should transition to laser beam state (priority over charge)
@@ -114,6 +117,7 @@ public class WalkState : EnemyState
     
     public override void Exit()
     {
+        if (!enemyAI.IsServer) return;
         Debug.Log("Enemy exiting Walk state");
     }
 }
@@ -127,6 +131,7 @@ public class ChargeState : EnemyState
     
     public override void Enter()
     {
+        if (!enemyAI.IsServer) return;
         Debug.Log("Enemy entering Charge state");
         
         chargeTimer = 0f;
@@ -145,6 +150,7 @@ public class ChargeState : EnemyState
     
     public override void Update()
     {
+        if (!enemyAI.IsServer) return;
         if (!isCharging) return;
         
         chargeTimer += Time.deltaTime;
@@ -196,6 +202,7 @@ public class ChargeState : EnemyState
     
     public override void Exit()
     {
+        if (!enemyAI.IsServer) return;
         Debug.Log("Enemy exiting Charge state");
         
         isCharging = false;
@@ -217,6 +224,7 @@ public class MeleeAttackState : EnemyState
     
     public override void Enter()
     {
+        if (!enemyAI.IsServer) return;
         Debug.Log("Enemy entering Melee Attack state");
         
         attackTimer = 0f;
@@ -235,6 +243,7 @@ public class MeleeAttackState : EnemyState
     
     public override void Update()
     {
+        if (!enemyAI.IsServer) return;
         attackTimer += Time.deltaTime;
         
         // Check if attack animation is complete
@@ -248,6 +257,7 @@ public class MeleeAttackState : EnemyState
     private void PerformMeleeAttack()
     {
         if (enemyAI.targetPlayer == null) return;
+        if (!enemyAI.IsServer) return;
         
         float distanceToPlayer = Vector3.Distance(stateMachine.transform.position, enemyAI.targetPlayer.position);
         Debug.Log("distanceToPlayer: " + distanceToPlayer);
@@ -279,6 +289,7 @@ public class MeleeAttackState : EnemyState
     
     public override void Exit()
     {
+        if (!enemyAI.IsServer) return;
         Debug.Log("Enemy exiting Melee Attack state");
         
         enemyAI.ResetMeleeAttackCooldown();
@@ -297,6 +308,7 @@ public class LaserBeamState : EnemyState
     
     public override void Enter()
     {
+        if (!enemyAI.IsServer) return;
         Debug.Log("Enemy entering Laser Beam state");
         
         beamTimer = 0f;
@@ -333,6 +345,7 @@ public class LaserBeamState : EnemyState
     
     public override void Update()
     {
+        if (!enemyAI.IsServer) return;
         beamTimer += Time.deltaTime;
         
         // Start the laser beam after a brief delay
@@ -457,6 +470,7 @@ public class LaserBeamState : EnemyState
     
     public override void Exit()
     {
+        if (!enemyAI.IsServer) return;
         Debug.Log("Enemy exiting Laser Beam state");
         
         // Re-enable agent
@@ -476,6 +490,7 @@ public class RangeAttackState : EnemyState
     
     public override void Enter()
     {
+        if (!enemyAI.IsServer) return;
         Debug.Log("Enemy entering Range Attack state");
         
         attackTimer = 0f;
@@ -499,6 +514,7 @@ public class RangeAttackState : EnemyState
     
     public override void Update()
     {
+        if (!enemyAI.IsServer) return;
         attackTimer += Time.deltaTime;
         
         // Perform attack at the right moment
@@ -545,6 +561,7 @@ public class RangeAttackState : EnemyState
     
     public override void Exit()
     {
+        if (!enemyAI.IsServer) return;
         Debug.Log("Enemy exiting Range Attack state");
     }
 }

@@ -7,6 +7,12 @@ public class NetworkPlayerSpawner : NetworkBehaviour
     [SerializeField] private Transform[] spawnPoints;
     [SerializeField] private GameObject[] playerPrefabs; // Array of player prefabs (index 0 = host, 1 = client, etc.)
     [SerializeField] private GameObject defaultPlayerPrefab; // Fallback if array is empty
+    
+    [Header("Enemy Spawn Settings")]
+    [SerializeField] private GameObject enemyPrefab; // Enemy prefab to spawn
+    [SerializeField] private Transform[] enemySpawnPoints; // Enemy spawn points
+    
+    private bool enemiesSpawned = false; // Track if enemies have been spawned
 
     public override void OnNetworkSpawn()
     {
@@ -19,6 +25,8 @@ public class NetworkPlayerSpawner : NetworkBehaviour
         if (NetworkManager.Singleton.IsHost)
         {
             SpawnPlayer(NetworkManager.Singleton.LocalClientId);
+            // Spawn enemies after host player spawns
+            SpawnEnemies();
         }
     }
 
@@ -107,6 +115,47 @@ public class NetworkPlayerSpawner : NetworkBehaviour
             Debug.LogError($"Player prefab {prefabToSpawn.name} does not have a NetworkObject component!");
             Destroy(playerInstance);
         }
+    }
+    
+    private void SpawnEnemies()
+    {
+        // Only spawn enemies once, when host spawns
+        if (enemiesSpawned) return;
+        
+        if (enemyPrefab == null)
+        {
+            Debug.LogWarning("Enemy prefab is not assigned in NetworkPlayerSpawner. Enemies will not spawn.");
+            return;
+        }
+        
+        if (enemySpawnPoints == null || enemySpawnPoints.Length == 0)
+        {
+            Debug.LogWarning("Enemy spawn points are not assigned in NetworkPlayerSpawner. Enemies will not spawn.");
+            return;
+        }
+        
+        // Spawn enemies at each spawn point
+        foreach (Transform spawnPoint in enemySpawnPoints)
+        {
+            if (spawnPoint == null) continue;
+            
+            GameObject enemyInstance = Instantiate(enemyPrefab, spawnPoint.position, spawnPoint.rotation);
+            NetworkObject networkObject = enemyInstance.GetComponent<NetworkObject>();
+            
+            if (networkObject != null)
+            {
+                // Spawn with server ownership (default behavior)
+                networkObject.Spawn();
+                Debug.Log($"Spawned enemy '{enemyPrefab.name}' at position {spawnPoint.position}");
+            }
+            else
+            {
+                Debug.LogError($"Enemy prefab {enemyPrefab.name} does not have a NetworkObject component!");
+                Destroy(enemyInstance);
+            }
+        }
+        
+        enemiesSpawned = true;
     }
 }
 
