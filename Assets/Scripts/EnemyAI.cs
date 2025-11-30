@@ -59,6 +59,10 @@ public class EnemyAI : NetworkBehaviour
     private bool canLaserBeam = true;
     private float lastLaserBeamTime = -12f;
     
+    // Laser beam visual
+    private LineRenderer laserLineRenderer;
+    private GameObject laserLineObject;
+    
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
@@ -112,6 +116,13 @@ public class EnemyAI : NetworkBehaviour
         if (NetworkManager.Singleton != null)
         {
             NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+        }
+        
+        if (laserLineObject != null)
+        {
+            Destroy(laserLineObject);
+            laserLineObject = null;
+            laserLineRenderer = null;
         }
         base.OnNetworkDespawn();
     }
@@ -310,6 +321,90 @@ public class EnemyAI : NetworkBehaviour
     {
         lastLaserBeamTime = Time.time;
         canLaserBeam = true;
+    }
+    
+    private void EnsureLaserLineRenderer()
+    {
+        if (laserLineRenderer != null) return;
+        
+        laserLineObject = new GameObject("LaserBeamVisual");
+        laserLineObject.transform.SetParent(transform);
+        laserLineObject.transform.localPosition = Vector3.zero;
+        laserLineObject.transform.localRotation = Quaternion.identity;
+        
+        laserLineRenderer = laserLineObject.AddComponent<LineRenderer>();
+        laserLineRenderer.material = new Material(Shader.Find("Sprites/Default"));
+        laserLineRenderer.material.color = Color.red;
+        laserLineRenderer.startWidth = laserBeamWidth;
+        laserLineRenderer.endWidth = laserBeamWidth;
+        laserLineRenderer.startColor = Color.red;
+        laserLineRenderer.endColor = Color.red;
+        laserLineRenderer.positionCount = 2;
+        laserLineRenderer.enabled = false;
+        laserLineRenderer.useWorldSpace = true;
+    }
+    
+    private void UpdateLaserLineVisual(Vector3 startPos, Vector3 endPos)
+    {
+        EnsureLaserLineRenderer();
+        laserLineRenderer.enabled = true;
+        laserLineRenderer.SetPosition(0, startPos);
+        laserLineRenderer.SetPosition(1, endPos);
+    }
+    
+    public void EnableLaserBeamVisual(Vector3 startPos, Vector3 endPos)
+    {
+        UpdateLaserLineVisual(startPos, endPos);
+        if (IsServer)
+        {
+            EnableLaserBeamVisualClientRpc(startPos, endPos);
+        }
+    }
+    
+    public void UpdateLaserBeamVisual(Vector3 startPos, Vector3 endPos)
+    {
+        UpdateLaserLineVisual(startPos, endPos);
+        if (IsServer)
+        {
+            UpdateLaserBeamVisualClientRpc(startPos, endPos);
+        }
+    }
+    
+    public void DisableLaserBeamVisual()
+    {
+        if (laserLineRenderer != null)
+        {
+            laserLineRenderer.enabled = false;
+        }
+        
+        if (IsServer)
+        {
+            DisableLaserBeamVisualClientRpc();
+        }
+    }
+    
+    [ClientRpc]
+    private void EnableLaserBeamVisualClientRpc(Vector3 startPos, Vector3 endPos)
+    {
+        if (IsServer) return;
+        UpdateLaserLineVisual(startPos, endPos);
+    }
+    
+    [ClientRpc]
+    private void UpdateLaserBeamVisualClientRpc(Vector3 startPos, Vector3 endPos)
+    {
+        if (IsServer) return;
+        UpdateLaserLineVisual(startPos, endPos);
+    }
+    
+    [ClientRpc]
+    private void DisableLaserBeamVisualClientRpc()
+    {
+        if (IsServer) return;
+        if (laserLineRenderer != null)
+        {
+            laserLineRenderer.enabled = false;
+        }
     }
 
     // Public method to take damage (called by other scripts)

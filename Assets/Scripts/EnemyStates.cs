@@ -300,7 +300,6 @@ public class LaserBeamState : EnemyState
 {
     private float beamTimer;
     private bool hasStartedBeam;
-    private LineRenderer laserLine;
     private Vector3 currentDirection; // Current beam direction
     private float trackingSpeed = 2f; // How fast the beam tracks the player
     
@@ -324,16 +323,12 @@ public class LaserBeamState : EnemyState
             enemyAI.StartLaserBeam();
             enemyAI.FacePlayerInstantly();
             
-            // Initialize the current beam direction
-            Vector3 startPos = stateMachine.transform.position + Vector3.up * 1.5f;
+            Vector3 startPos = GetLaserStartPosition();
             currentDirection = (enemyAI.targetPlayer.position - startPos).normalized;
             currentDirection.y = 0; // Keep it horizontal
             currentDirection = currentDirection.normalized;
         }
         
-        // Create laser line renderer
-        CreateLaserLine();
-
         // Set animation
         /*
         if (animator != null)
@@ -351,8 +346,10 @@ public class LaserBeamState : EnemyState
         // Start the laser beam after a brief delay
         if (!hasStartedBeam && beamTimer >= enemyAI.getLaserBeamStateBuffer())
         {
-            StartLaserBeam();
             hasStartedBeam = true;
+            Vector3 startPos = GetLaserStartPosition();
+            Vector3 endPos = startPos + currentDirection * enemyAI.getLaserBeamRange();
+            enemyAI.EnableLaserBeamVisual(startPos, endPos);
         }
         
         // Continue the laser beam
@@ -361,11 +358,8 @@ public class LaserBeamState : EnemyState
             UpdateLaserBeam();
         }
         else if (hasStartedBeam && beamTimer >= enemyAI.getLaserBeamDuration()) {
-            // Destroy laser line
-            if (laserLine != null)
-            {
-                UnityEngine.Object.Destroy(laserLine.gameObject);
-            }
+            hasStartedBeam = false;
+            enemyAI.DisableLaserBeamVisual();
         }
         
         // Check if state is complete
@@ -376,46 +370,20 @@ public class LaserBeamState : EnemyState
         }
     }
     
-    private void CreateLaserLine()
+    private Vector3 GetLaserStartPosition()
     {
-        // Create a LineRenderer for the laser beam
-        GameObject laserObj = new GameObject("LaserBeam");
-        laserObj.transform.SetParent(stateMachine.transform);
-        laserLine = laserObj.AddComponent<LineRenderer>();
-        
-        // Configure the line renderer
-        laserLine.material = new Material(Shader.Find("Sprites/Default"));
-        laserLine.material.color = Color.red;
-        laserLine.startWidth = enemyAI.getLaserBeamWidth();
-        laserLine.endWidth = enemyAI.getLaserBeamWidth();
-        laserLine.positionCount = 2;
-        laserLine.enabled = false; // Start disabled
-    }
-    
-    private void StartLaserBeam()
-    {
-        if (laserLine != null)
-        {
-            laserLine.enabled = true;
-        }
+        return stateMachine.transform.position + Vector3.up * 1.5f; // Eye level
     }
     
     private void UpdateLaserBeam()
     {
-        if (laserLine == null) return;
-        
-        // Update beam direction to slowly follow player
         UpdateBeamDirection();
         
         // Calculate laser positions
-        Vector3 startPos = stateMachine.transform.position + Vector3.up * 1.5f; // Eye level
+        Vector3 startPos = GetLaserStartPosition();
         Vector3 endPos = startPos + currentDirection * enemyAI.getLaserBeamRange();
         
-        // Set laser line positions
-        laserLine.SetPosition(0, startPos);
-        laserLine.SetPosition(1, endPos);
-        
-        // Deal damage to player if in laser path
+        enemyAI.UpdateLaserBeamVisual(startPos, endPos);
         DealLaserDamage(startPos, currentDirection);
     }
     
@@ -475,6 +443,8 @@ public class LaserBeamState : EnemyState
         
         // Re-enable agent
         agent.enabled = true;
+        
+        enemyAI.DisableLaserBeamVisual();
         
         // Reset cooldown
         enemyAI.ResetLaserBeamCooldown();
