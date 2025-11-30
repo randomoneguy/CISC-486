@@ -1,7 +1,8 @@
 using UnityEngine;
 using UnityEngine.AI;
+using Unity.Netcode;
 
-public class EnemyAI : MonoBehaviour
+public class EnemyAI : NetworkBehaviour
 {
     [Header("AI Settings")]
     [SerializeField] private float chargeRange = 20f;
@@ -37,8 +38,11 @@ public class EnemyAI : MonoBehaviour
     public GameObject rangeAttackEffect;
     
     // Public references
-    public Transform player;
+    public Transform targetPlayer; // Current target player
     public EnemyStateMachine stateMachine;
+    
+    // Multiplayer: Find all players
+    private Transform[] allPlayers;
     
     // Private components
     private NavMeshAgent agent;
@@ -55,18 +59,35 @@ public class EnemyAI : MonoBehaviour
     private bool canLaserBeam = true;
     private float lastLaserBeamTime = -12f;
     
-    void Start()
+    // Laser beam visual
+    private LineRenderer laserLineRenderer;
+    private GameObject laserLineObject;
+    
+    public override void OnNetworkSpawn()
     {
+        base.OnNetworkSpawn();
+        
+        // Ensure enemy is owned by the server
+        NetworkObject networkObject = GetComponent<NetworkObject>();
+        if (networkObject != null && IsServer && NetworkManager.Singleton != null)
+        {
+            // Change ownership to server if not already owned by server
+            // ServerClientId is 0, which represents the server
+            if (networkObject.OwnerClientId != NetworkManager.ServerClientId)
+            {
+                networkObject.ChangeOwnership(NetworkManager.ServerClientId);
+                Debug.Log($"Enemy ownership changed to server. Previous owner: {networkObject.OwnerClientId}");
+            }
+        }
+        
+        // Only run AI on the server
+        if (!IsServer) return;
+        
         // Get components
         agent = GetComponent<NavMeshAgent>();
         animator = GetComponent<Animator>();
         enemyHealth = GetComponent<EnemyHealth>();
         stateMachine = GetComponent<EnemyStateMachine>();
-        
-        // Find player
-        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-        if (playerObj != null)
-            player = playerObj.transform;
         
         // Set up agent
         agent.speed = moveSpeed;
@@ -78,15 +99,110 @@ public class EnemyAI : MonoBehaviour
         {
             stateMachine.enemyAI = this;
         }
+        
+        // Subscribe to client connection events to refresh player list when new players connect
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
+        }
+        
+        // Find players (will be called after network spawn)
+        FindPlayers();
+    }
+    
+    public override void OnNetworkDespawn()
+    {
+        // Unsubscribe from client connection events
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+        }
+        
+        if (laserLineObject != null)
+        {
+            Destroy(laserLineObject);
+            laserLineObject = null;
+            laserLineRenderer = null;
+        }
+        base.OnNetworkDespawn();
+    }
+    
+    private void OnClientConnected(ulong clientId)
+    {
+        // When a new client connects, refresh the player list so enemy can target them
+        if (IsServer)
+        {
+            FindPlayers();
+        }
+    }
+
+    private void FindPlayers()
+    {
+        // Find all player objects in the scene
+        GameObject[] playerObjects = GameObject.FindGameObjectsWithTag("Player");
+        System.Collections.Generic.List<Transform> playerList = new System.Collections.Generic.List<Transform>();
+        
+        foreach (GameObject playerObj in playerObjects)
+        {
+            NetworkObject netObj = playerObj.GetComponent<NetworkObject>();
+            // Only target spawned network players
+            if (netObj != null && netObj.IsSpawned)
+            {
+                playerList.Add(playerObj.transform);
+            }
+        }
+        
+        allPlayers = playerList.ToArray();
+    }
+
+    private void UpdateTargetPlayer()
+    {
+        // Always refresh player list to ensure we have all current players (including newly connected ones)
+        // This ensures the enemy can target clients that connect after the enemy spawns
+        FindPlayers();
+        
+        if (allPlayers == null || allPlayers.Length == 0)
+        {
+            return;
+        }
+        
+        // Find closest player
+        float closestDistance = float.MaxValue;
+        Transform closestPlayer = null;
+        
+        foreach (Transform player in allPlayers)
+        {
+            if (player == null) continue;
+            
+            float distance = Vector3.Distance(transform.position, player.position);
+            if (distance < closestDistance)
+            {
+                closestDistance = distance;
+                closestPlayer = player;
+            }
+        }
+        
+        targetPlayer = closestPlayer;
     }
     
     void Update()
     {
+        // Only run AI on the server
+        if (!IsServer) return;
+        
         // Check if enemy is dead
         if (enemyHealth != null && enemyHealth.IsDead())
         {
             // Handle death state here if needed
             return;
+        }
+        
+        // Update target player periodically (every 0.5 seconds)
+        if (Time.frameCount % 30 == 0 // Roughly every 0.5 seconds at 60fps
+            && stateMachine != null
+            && stateMachine.currentState == stateMachine.walkState)
+        {
+            UpdateTargetPlayer();
         }
         
         // Update animator speed
@@ -206,6 +322,90 @@ public class EnemyAI : MonoBehaviour
         lastLaserBeamTime = Time.time;
         canLaserBeam = true;
     }
+    
+    private void EnsureLaserLineRenderer()
+    {
+        if (laserLineRenderer != null) return;
+        
+        laserLineObject = new GameObject("LaserBeamVisual");
+        laserLineObject.transform.SetParent(transform);
+        laserLineObject.transform.localPosition = Vector3.zero;
+        laserLineObject.transform.localRotation = Quaternion.identity;
+        
+        laserLineRenderer = laserLineObject.AddComponent<LineRenderer>();
+        laserLineRenderer.material = new Material(Shader.Find("Sprites/Default"));
+        laserLineRenderer.material.color = Color.red;
+        laserLineRenderer.startWidth = laserBeamWidth;
+        laserLineRenderer.endWidth = laserBeamWidth;
+        laserLineRenderer.startColor = Color.red;
+        laserLineRenderer.endColor = Color.red;
+        laserLineRenderer.positionCount = 2;
+        laserLineRenderer.enabled = false;
+        laserLineRenderer.useWorldSpace = true;
+    }
+    
+    private void UpdateLaserLineVisual(Vector3 startPos, Vector3 endPos)
+    {
+        EnsureLaserLineRenderer();
+        laserLineRenderer.enabled = true;
+        laserLineRenderer.SetPosition(0, startPos);
+        laserLineRenderer.SetPosition(1, endPos);
+    }
+    
+    public void EnableLaserBeamVisual(Vector3 startPos, Vector3 endPos)
+    {
+        UpdateLaserLineVisual(startPos, endPos);
+        if (IsServer)
+        {
+            EnableLaserBeamVisualClientRpc(startPos, endPos);
+        }
+    }
+    
+    public void UpdateLaserBeamVisual(Vector3 startPos, Vector3 endPos)
+    {
+        UpdateLaserLineVisual(startPos, endPos);
+        if (IsServer)
+        {
+            UpdateLaserBeamVisualClientRpc(startPos, endPos);
+        }
+    }
+    
+    public void DisableLaserBeamVisual()
+    {
+        if (laserLineRenderer != null)
+        {
+            laserLineRenderer.enabled = false;
+        }
+        
+        if (IsServer)
+        {
+            DisableLaserBeamVisualClientRpc();
+        }
+    }
+    
+    [ClientRpc]
+    private void EnableLaserBeamVisualClientRpc(Vector3 startPos, Vector3 endPos)
+    {
+        if (IsServer) return;
+        UpdateLaserLineVisual(startPos, endPos);
+    }
+    
+    [ClientRpc]
+    private void UpdateLaserBeamVisualClientRpc(Vector3 startPos, Vector3 endPos)
+    {
+        if (IsServer) return;
+        UpdateLaserLineVisual(startPos, endPos);
+    }
+    
+    [ClientRpc]
+    private void DisableLaserBeamVisualClientRpc()
+    {
+        if (IsServer) return;
+        if (laserLineRenderer != null)
+        {
+            laserLineRenderer.enabled = false;
+        }
+    }
 
     // Public method to take damage (called by other scripts)
     public void TakeDamage(int damage)
@@ -219,15 +419,15 @@ public class EnemyAI : MonoBehaviour
     // Method to check if player is in range
     public bool IsPlayerInRange(float range)
     {
-        if (player == null) return false;
-        return Vector3.Distance(transform.position, player.position) <= range;
+        if (targetPlayer == null) return false;
+        return Vector3.Distance(transform.position, targetPlayer.position) <= range;
     }
     
     // Method to get distance to player
     public float GetDistanceToPlayer()
     {
-        if (player == null) return float.MaxValue;
-        return Vector3.Distance(transform.position, player.position);
+        if (targetPlayer == null) return float.MaxValue;
+        return Vector3.Distance(transform.position, targetPlayer.position);
     }
     
     // Method to check if enemy can charge
@@ -269,9 +469,9 @@ public class EnemyAI : MonoBehaviour
     // Generalized method to face the player
     public void FacePlayer()
     {
-        if (player == null) return;
+        if (targetPlayer == null) return;
         
-        Vector3 direction = (player.position - transform.position).normalized;
+        Vector3 direction = (targetPlayer.position - transform.position).normalized;
         direction.y = 0; // Keep rotation on horizontal plane
         
         if (direction != Vector3.zero)
@@ -288,9 +488,9 @@ public class EnemyAI : MonoBehaviour
     // Generalized method to face player instantly (no smooth rotation)
     public void FacePlayerInstantly()
     {
-        if (player == null) return;
+        if (targetPlayer == null) return;
         
-        Vector3 direction = (player.position - transform.position).normalized;
+        Vector3 direction = (targetPlayer.position - transform.position).normalized;
         direction.y = 0; // Keep rotation on horizontal plane
         
         if (direction != Vector3.zero)
@@ -344,10 +544,10 @@ public class EnemyAI : MonoBehaviour
         Gizmos.DrawWireSphere(transform.position, meleeRange);
         
         // Player direction
-        if (player != null)
+        if (targetPlayer != null)
         {
             Gizmos.color = Color.green;
-            Gizmos.DrawLine(transform.position, player.position);
+            Gizmos.DrawLine(transform.position, targetPlayer.position);
         }
     }
 }

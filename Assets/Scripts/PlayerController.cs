@@ -1,7 +1,8 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Unity.Netcode;
 
-public class PlayerController : MonoBehaviour
+public class PlayerController : NetworkBehaviour
 {
 
     private PlayerInput playerInput;
@@ -78,36 +79,93 @@ public class PlayerController : MonoBehaviour
         return attackAction.WasPressedThisFrame();
     }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    public override void OnNetworkSpawn()
     {
-        playerInput = GetComponent<PlayerInput>();
-        moveAction = playerInput.actions.FindAction("Move");
-        attackAction = playerInput.actions.FindAction("Attack");
+        base.OnNetworkSpawn();
+        
+        // Get components that all clients need
         rb = GetComponent<Rigidbody>();
+        animator = GetComponent<Animator>();
+        stateMachine = GetComponent<PlayerStateMachine>();
+        
+        if (rb != null)
+        {
+            rb.freezeRotation = true;
+        }
+
+        // Only setup input for the owner
+        if (!IsOwner) 
+        {
+            // Disable PlayerInput for non-owners
+            playerInput = GetComponent<PlayerInput>();
+            if (playerInput != null)
+            {
+                playerInput.enabled = false;
+            }
+            return;
+        }
+
+        // Owner setup - enable input
+        playerInput = GetComponent<PlayerInput>();
+        if (playerInput != null)
+        {
+            playerInput.enabled = true;
+            moveAction = playerInput.actions.FindAction("Move");
+            attackAction = playerInput.actions.FindAction("Attack");
+            
+            if (moveAction == null || attackAction == null)
+            {
+                Debug.LogError("PlayerInput actions not found! Make sure 'Move' and 'Attack' actions exist in your Input Actions asset.");
+            }
+        }
+        else
+        {
+            Debug.LogError("PlayerInput component not found! Please add it to the player prefab.");
+        }
         
         // Get state machine component
-        stateMachine = GetComponent<PlayerStateMachine>();
         if (stateMachine == null)
         {
             Debug.LogError("PlayerStateMachine component not found! Please add it to the player GameObject.");
         }
 
-        rb.freezeRotation = true;
+        // Find camera (could be in scene or on player)
+        if (cam == null)
+        {
+            Camera mainCam = Camera.main;
+            if (mainCam != null)
+            {
+                cam = mainCam.transform;
+            }
+        }
 
-        camForward = cam.forward;
-        camRight = cam.right;
+        if (cam != null)
+        {
+            camForward = cam.forward;
+            camRight = cam.right;
 
-        camForward.y = 0;
-        camRight.y = 0;
-        camForward.Normalize();
-        camRight.Normalize();
+            camForward.y = 0;
+            camRight.y = 0;
+            camForward.Normalize();
+            camRight.Normalize();
+        }
         
         // Subscribe to attack input
         if (attackAction != null)
         {
             attackAction.performed += OnAttackInput;
         }
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        // Unsubscribe from input events
+        if (attackAction != null)
+        {
+            attackAction.performed -= OnAttackInput;
+        }
+        
+        base.OnNetworkDespawn();
     }
     
     private void OnAttackInput(InputAction.CallbackContext context)
@@ -124,18 +182,12 @@ public class PlayerController : MonoBehaviour
         }
     }
     
-    private void OnDisable()
-    {
-        // Unsubscribe from input events
-        if (attackAction != null)
-        {
-            attackAction.performed -= OnAttackInput;
-        }
-    }
-
     // Update is called once per frame
     void Update()
     {
+        // Only process input and movement for the owner
+        if (!IsOwner) return;
+        
         MovePlayer();
     }
 
@@ -144,30 +196,42 @@ public class PlayerController : MonoBehaviour
         // Check if movement can resume (allows movement after attack animation progresses)
         if (!CanResumeMovement())
         {
-            animator.SetFloat("Speed", 0);
+            if (animator != null)
+                animator.SetFloat("Speed", 0);
             moveDir = Vector3.zero;
             return;
         }
         
-        // TODO: update this old input system to new one, if there is time
+        if (moveAction == null || cam == null) return;
+        
         Vector2 input = moveAction.ReadValue<Vector2>();
 
+        // Update camera vectors in case camera moved
+        camForward = cam.forward;
+        camRight = cam.right;
+        camForward.y = 0;
+        camRight.y = 0;
+        camForward.Normalize();
+        camRight.Normalize();
+
         moveDir = camForward * input.y + camRight * input.x;
-        if (input.x != 0 || input.y != 0)
+        
+        // Update animator - NetworkAnimator will sync this automatically
+        if (animator != null)
         {
-            animator.SetFloat("Speed", 1);
-        }
-        else
-        {
-            animator.SetFloat("Speed", 0);
+            if (input.x != 0 || input.y != 0)
+            {
+                animator.SetFloat("Speed", 1);
+            }
+            else
+            {
+                animator.SetFloat("Speed", 0);
+            }
         }
 
         // Movement
         if (moveDir.sqrMagnitude > 0.001f)
         {
-            // Move player
-            transform.position += moveDir * speed * Time.deltaTime;
-
             // Smoothly rotate toward movement direction
             Quaternion targetRotation = Quaternion.LookRotation(moveDir);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
@@ -176,13 +240,19 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        // Only move if we're the owner
+        if (!IsOwner) return;
+        
         // Only move if movement is allowed (respects attack animation progress)
         if (!CanResumeMovement())
         {
             return;
         }
         
-        Vector3 targetPos = rb.position + moveDir * speed * Time.fixedDeltaTime;
-        rb.MovePosition(targetPos);
+        if (rb != null && moveDir.sqrMagnitude > 0.001f)
+        {
+            Vector3 targetPos = rb.position + moveDir * speed * Time.fixedDeltaTime;
+            rb.MovePosition(targetPos);
+        }
     }
 }
