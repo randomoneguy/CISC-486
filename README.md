@@ -3,12 +3,12 @@ Arena Boss Rush TouHou inspired
 
 # 🎮 Title: Touhou Souls
 
-1. Set Up/Run Project
-2. Clone repo using HTTPS, SSH, or GitHub CLI method
-3. Git pull from main branch
-4. Add project to unity hub from disk based on directory the project is pulled
-5. Make sure to open the project on Editor Version 6000.0.59f2
-6. Play and run scene as wanted
+# Set Up/Run Project
+1. Clone repo using HTTPS, SSH, or GitHub CLI method
+2. Git pull from main branch
+3. Add project to unity hub from disk based on directory the project is pulled
+4. Make sure to open the project on Editor Version 6000.0.59f2
+5. Play and run scene as wanted
 
 <br>Build Ready EXE file can be also be found to directly run the game demo. File is titled **'game_build_demo.exe'** under root repo directory **'Game Build'**
 <br>Download this demo directory and run the exe
